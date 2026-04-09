@@ -1,0 +1,205 @@
+// ──────────────────────────────────────────────
+//  SANCTUM — Prisma Schema
+//  Banco: PostgreSQL (Supabase)
+// ──────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USUÁRIO ───────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  avatar    String?
+  parishId  String?  @map("parish_id")
+  parish    Parish?  @relation(fields: [parishId], references: [id])
+
+  streak             Streak?
+  bibleProgress      BibleProgress[]
+  bibleVerseProgress BibleVerseProgress[]
+  prayerRequests     PrayerRequest[]
+  prayerActions      PrayerAction[]
+  reports            Report[]
+  refreshTokens      RefreshToken[]
+  liturgyCompletions LiturgyCompletion[]
+
+  isAdmin   Boolean  @default(false) @map("is_admin")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+// ─── PARÓQUIA ──────────────────────────────────
+model Parish {
+  id    String @id @default(cuid())
+  name  String
+  city  String
+  state String
+  users User[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("parishes")
+}
+
+// ─── REFRESH TOKEN ─────────────────────────────
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("refresh_tokens")
+}
+
+// ─── STREAK ────────────────────────────────────
+model Streak {
+  id             String    @id @default(cuid())
+  userId         String    @unique @map("user_id")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentStreak  Int       @default(0) @map("current_streak")
+  longestStreak  Int       @default(0) @map("longest_streak")
+  shields        Int       @default(0) @map("shields") // escudos protetores (máx 2)
+  lastActivityAt DateTime? @map("last_activity_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("streaks")
+}
+
+// ─── CONTEÚDO LITÚRGICO DIÁRIO ─────────────────
+model DailyContent {
+  id              String   @id @default(cuid())
+  date            DateTime @unique @db.Date
+  gospel          String   @db.Text
+  gospelReference String?  @map("gospel_reference")
+  reflection      String?  @db.Text
+  homily          String?  @db.Text
+  homilyAudioUrl  String?  @map("homily_audio_url")
+  firstReading    String?  @db.Text @map("first_reading")
+  firstReadingReference String? @map("first_reading_reference")
+  secondReading   String?  @db.Text @map("second_reading")
+  secondReadingReference String? @map("second_reading_reference")
+  psalm           String?  @db.Text
+  psalmReference  String?  @map("psalm_reference")
+  liturgicalSeason String?  @map("liturgical_season")
+  source          String   @default("cancaonova")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("daily_contents")
+}
+
+// ─── CONCLUSÃO DA LITURGIA DIÁRIA ─────────────
+model LiturgyCompletion {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         DateTime @db.Date
+  contemplated Boolean  @default(false)
+  totalMarked  Int      @default(0) @map("total_marked")
+  completedAt  DateTime @default(now()) @map("completed_at")
+
+  @@unique([userId, date])
+  @@map("liturgy_completions")
+}
+
+// ─── PROGRESSO DA BÍBLIA ───────────────────────
+model BibleProgress {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId       String   @map("book_id") // ex: "GEN", "MAT", "REV"
+  bookName     String   @map("book_name") // ex: "Gênesis"
+  chapterNum   Int      @map("chapter_num")
+  contemplated Boolean  @default(false)
+  lastReadAt   DateTime @default(now()) @map("last_read_at")
+
+  @@unique([userId, bookId, chapterNum])
+  @@map("bible_progress")
+}
+
+model BibleVerseProgress {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId       String   @map("book_id")
+  bookName     String   @map("book_name")
+  chapterNum   Int      @map("chapter_num")
+  verseNum     Int      @map("verse_num")
+  contemplated Boolean  @default(false)
+  lastReadAt   DateTime @default(now()) @map("last_read_at")
+
+  @@unique([userId, bookId, chapterNum, verseNum])
+  @@index([userId, bookId, chapterNum])
+  @@map("bible_verse_progress")
+}
+
+// ─── CAPÍTULOS CACHEADOS DA BÍBLIA ─────────────
+model BibleChapterCache {
+  id         String   @id @default(cuid())
+  bookId     String   @map("book_id")
+  chapterNum Int      @map("chapter_num")
+  content    String   @db.Text // JSON com versículos
+  fetchedAt  DateTime @default(now()) @map("fetched_at")
+
+  @@unique([bookId, chapterNum])
+  @@map("bible_chapter_cache")
+}
+
+// ─── PEDIDOS DE ORAÇÃO ──────────────────────────
+model PrayerRequest {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content     String   @db.VarChar(500)
+  isAnonymous Boolean  @default(false) @map("is_anonymous")
+  prayerCount Int      @default(0) @map("prayer_count")
+  reportCount Int      @default(0) @map("report_count")
+  isHidden    Boolean  @default(false) @map("is_hidden") // oculto após 3 reports
+
+  actions PrayerAction[]
+  reports Report[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("prayer_requests")
+}
+
+// ─── AÇÕES DE ORAÇÃO ("rezar por você") ────────
+model PrayerAction {
+  id              String        @id @default(cuid())
+  userId          String        @map("user_id")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prayerRequestId String        @map("prayer_request_id")
+  prayerRequest   PrayerRequest @relation(fields: [prayerRequestId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@unique([userId, prayerRequestId])
+  @@map("prayer_actions")
+}
+
+// ─── REPORTS DE MODERAÇÃO ──────────────────────
+model Report {
+  id              String        @id @default(cuid())
+  userId          String        @map("user_id")
+  user            User          @relation(fields: [userId], references: [id])
+  prayerRequestId String        @map("prayer_request_id")
+  prayerRequest   PrayerRequest @relation(fields: [prayerRequestId], references: [id], onDelete: Cascade)
+  reason          String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@unique([userId, prayerRequestId])
+  @@map("reports")
+}

@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Sanctum",
+    "slug": "sanctum",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "sanctum",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B3A6B"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.sanctum.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1B3A6B"
+      },
+      "package": "com.sanctum.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1B3A6B"
+        }
+      ]
+    ]
+  }
+}
