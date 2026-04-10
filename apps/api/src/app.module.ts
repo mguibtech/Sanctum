@@ -18,6 +18,7 @@ import { RemindersModule } from './modules/reminders/reminders.module';
 import { ContentLibraryModule } from './modules/content-library/content-library.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { GroupsModule } from './modules/groups/groups.module';
+import { PersonalizationModule } from './modules/personalization/personalization.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { GroupsModule } from './modules/groups/groups.module';
     ContentLibraryModule,
     CampaignsModule,
     GroupsModule,
+    PersonalizationModule,
   ],
 })
 export class AppModule {}

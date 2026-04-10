@@ -1,12 +1,18 @@
-import { Controller, Post, Body, UseGuards, Request, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, HttpCode, Get } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { PreferenceService } from '../personalization/preference.service';
+import { OnboardingDto } from '../personalization/dto/onboarding.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private auth: AuthService) {}
+  constructor(
+    private auth: AuthService,
+    private preference: PreferenceService,
+  ) {}
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
@@ -30,5 +36,18 @@ export class AuthController {
   @HttpCode(200)
   logout(@Body() dto: RefreshDto) {
     return this.auth.logout(dto.refreshToken);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('onboarding')
+  @HttpCode(200)
+  completeOnboarding(@Request() req: any, @Body() dto: OnboardingDto) {
+    return this.preference.completeOnboarding(req.user.id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  getMe(@Request() req: any) {
+    return this.auth.getUser(req.user.id);
   }
 }

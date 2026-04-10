@@ -45,8 +45,12 @@ model User {
   campaignUpdates    PrayerCampaignUpdate[]
   communityGroups    CommunityGroup[] @relation("CreatedBy")
   groupMemberships   CommunityGroupMember[]
+  preferenceProfile  UserPreferenceProfile?
+  interests          UserInterest[]
+  recommendations    RecommendationQueue[]
 
   isAdmin   Boolean  @default(false) @map("is_admin")
+  onboardingCompleted Boolean @default(false) @map("onboarding_completed")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -702,4 +706,52 @@ model CommunityGroupMember {
   @@unique([groupId, userId])
   @@index([groupId])
   @@map("community_group_members")
+}
+
+// ─── FASE 4: PERSONALIZAÇÃO ────────────────────
+model UserPreferenceProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  preferredFormat String   @default("MIXED") @map("preferred_format") // AUDIO | TEXT | MIXED
+  sessionLength   String   @default("MEDIUM") @map("session_length") // SHORT | MEDIUM | LONG
+  focusArea       String   @default("PEACE") @map("focus_area") // PEACE | BIBLE | ROSARY | LITURGY | SLEEP | BEGINNER
+  experienceLevel String   @default("BEGINNER") @map("experience_level") // BEGINNER | INTERMEDIATE | ADVANCED
+
+  notifyMorning   Boolean  @default(true) @map("notify_morning")
+  notifyNight     Boolean  @default(true) @map("notify_night")
+  timezone        String   @default("UTC")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("user_preference_profiles")
+}
+
+model UserInterest {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interestKey   String   @map("interest_key") // LENT, NOVENA, ROSARY, PEACE, SLEEP, FAMILY, etc.
+
+  @@unique([userId, interestKey])
+  @@map("user_interests")
+}
+
+model RecommendationQueue {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  recommendationType String  @map("recommendation_type") // SESSION | SERIES | CAMPAIGN | ROUTINE | BIBLE
+  targetId          String   @map("target_id")
+  reasonKey         String   @map("reason_key")
+  score             Float    @default(0)
+
+  generatedAt       DateTime @default(now()) @map("generated_at")
+  consumedAt        DateTime? @map("consumed_at")
+
+  @@index([userId, consumedAt])
+  @@map("recommendation_queues")
 }
