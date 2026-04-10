@@ -1,12 +1,17 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { ChallengeType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ChallengeService } from '../challenges/challenge.service';
 import { CreatePrayerRequestDto } from './dto/create-prayer-request.dto';
 
 const REPORT_THRESHOLD = 3; // oculta automaticamente ao atingir este número
 
 @Injectable()
 export class CommunityService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private challenges: ChallengeService,
+  ) {}
 
   async getPrayerRequests(page = 1, limit = 20) {
     const skip = (page - 1) * limit;
@@ -44,10 +49,29 @@ export class CommunityService {
       await this.prisma.prayerAction.create({
         data: { userId, prayerRequestId },
       });
-      return this.prisma.prayerRequest.update({
+
+      // Registrar sessão de oração comunitária
+      await this.prisma.prayerSessionLog.create({
+        data: {
+          userId,
+          sourceType: 'CAMPAIGN', // Community prayer é tratado como campaign
+          sourceId: prayerRequestId,
+          startedAt: new Date(),
+          completedAt: new Date(),
+          durationSeconds: 60, // Estimativa padrão de 1 minuto
+          completionState: 'COMPLETED',
+          contemplated: false,
+          streakCounted: false,
+        },
+      });
+
+      const updated = await this.prisma.prayerRequest.update({
         where: { id: prayerRequestId },
         data: { prayerCount: { increment: 1 } },
       });
+
+      this.challenges.incrementProgress(userId, ChallengeType.COMMUNITY_PRAYER).catch(() => {});
+      return updated;
     } catch {
       // Usuário já rezou por este pedido — sem alterações
       return request;

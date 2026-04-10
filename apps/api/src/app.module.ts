@@ -10,6 +10,11 @@ import { BibleModule } from './modules/bible/bible.module';
 import { StreakModule } from './modules/streak/streak.module';
 import { RosaryModule } from './modules/rosary/rosary.module';
 import { CommunityModule } from './modules/community/community.module';
+import { XpModule } from './modules/xp/xp.module';
+import { ChallengeModule } from './modules/challenges/challenge.module';
+import { SessionsModule } from './modules/sessions/sessions.module';
+import { RoutinesModule } from './modules/routines/routines.module';
+import { RemindersModule } from './modules/reminders/reminders.module';
 
 @Module({
   imports: [
@@ -33,6 +38,11 @@ import { CommunityModule } from './modules/community/community.module';
     StreakModule,
     RosaryModule,
     CommunityModule,
+    XpModule,
+    ChallengeModule,
+    SessionsModule,
+    RoutinesModule,
+    RemindersModule,
   ],
 })
 export class AppModule {}

@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Patch, Query, Body, UseGuards, Request } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -21,5 +21,20 @@ export class UsersController {
   @Get('me/stats')
   getStats(@Request() req: any) {
     return this.users.getStats(req.user.id);
+  }
+
+  @Get('me/badges')
+  getBadges(@Request() req: any) {
+    return this.users.getBadges(req.user.id);
+  }
+
+  @Get('me/activity')
+  getActivity(@Request() req: any, @Query('days') days?: string) {
+    return this.users.getActivityHistory(req.user.id, days ? Math.min(Number(days), 30) : 7);
+  }
+
+  @Get('me/today')
+  getTodayPlan(@Request() req: any) {
+    return this.users.getTodayPlan(req.user.id);
   }
 }
