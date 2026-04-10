@@ -3,6 +3,10 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BibleService } from '../bible/bible.service';
+import { XpService } from '../xp/xp.service';
+import { ChallengeService } from '../challenges/challenge.service';
+import { SessionsService } from '../sessions/sessions.service';
+import { ChallengeType } from '@prisma/client';
 import { CATHOLIC_BIBLE_BOOKS } from '../bible/bible.data';
 import { CompleteLiturgyDto } from './dto/complete-liturgy.dto';
 
@@ -43,6 +47,9 @@ export class LiturgyService {
     private prisma: PrismaService,
     private http: HttpService,
     private bible: BibleService,
+    private xp: XpService,
+    private challenges: ChallengeService,
+    private sessions: SessionsService,
   ) {}
 
   async getToday() {
@@ -243,10 +250,31 @@ export class LiturgyService {
     }
 
     // Persiste a conclusão no banco (upsert: permite re-marcar com contemplação)
+    const existing = await this.prisma.liturgyCompletion.findUnique({
+      where: { userId_date: { userId, date } },
+    });
+
     await this.prisma.liturgyCompletion.upsert({
       where: { userId_date: { userId, date } },
       create: { userId, date, contemplated, totalMarked: marked.length },
       update: { contemplated, totalMarked: marked.length, completedAt: new Date() },
+    });
+
+    // Concede XP e progresso de desafios apenas na primeira conclusão do dia
+    let xpResult: any = null;
+    if (!existing) {
+      xpResult = await this.xp.recordLiturgyRead(userId, contemplated, marked.length);
+      this.challenges.incrementProgress(userId, ChallengeType.LITURGY_READ).catch(() => {});
+      if (contemplated) {
+        this.challenges.incrementProgress(userId, ChallengeType.CONTEMPLATION).catch(() => {});
+      }
+    }
+
+    await this.sessions.logCompletedSession(userId, 'LITURGY', date.toISOString().slice(0, 10), {
+      durationSeconds: Math.max(marked.length, 1) * 4 * 60,
+      contemplated,
+      xpGranted: xpResult?.xpGained ?? 0,
+      streakCounted: !existing,
     });
 
     return {
@@ -255,6 +283,7 @@ export class LiturgyService {
       skippedReferences,
       totalMarked: marked.length,
       contemplated,
+      xp: xpResult,
     };
   }
 

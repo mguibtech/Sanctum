@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, UseGuards, Request, Delete, Query } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BibleService } from './bible.service';
 import { SaveProgressDto } from './dto/save-progress.dto';
+import { SavePassageDto } from './dto/save-passage.dto';
 
 @Controller('bible')
 @UseGuards(JwtAuthGuard)
@@ -13,6 +14,11 @@ export class BibleController {
     return this.bible.getBooks();
   }
 
+  @Get('health')
+  getHealth() {
+    return this.bible.ping();
+  }
+
   @Get('books/:bookId/chapters')
   getChapters(@Param('bookId') bookId: string) {
     return this.bible.getChapters(bookId);
@@ -21,6 +27,11 @@ export class BibleController {
   @Get('books/:bookId/chapters/:num')
   getChapter(@Param('bookId') bookId: string, @Param('num') num: string) {
     return this.bible.getChapter(bookId, Number(num));
+  }
+
+  @Get('books/:bookId/progress')
+  getBookProgress(@Request() req: any, @Param('bookId') bookId: string) {
+    return this.bible.getBookProgress(req.user.id, bookId);
   }
 
   @Post('progress')
@@ -39,5 +50,37 @@ export class BibleController {
   @Get('progress')
   getProgress(@Request() req: any) {
     return this.bible.getProgress(req.user.id);
+  }
+
+  @Get('saved-passages')
+  getSavedPassages(
+    @Request() req: any,
+    @Query('bookId') bookId?: string,
+    @Query('chapterNum') chapterNum?: string,
+  ) {
+    return this.bible.getSavedPassages(
+      req.user.id,
+      bookId,
+      chapterNum ? Number(chapterNum) : undefined,
+    );
+  }
+
+  @Get('books/:bookId/chapters/:num/saved-passages')
+  getSavedPassagesByChapter(
+    @Request() req: any,
+    @Param('bookId') bookId: string,
+    @Param('num') num: string,
+  ) {
+    return this.bible.getSavedPassages(req.user.id, bookId, Number(num));
+  }
+
+  @Post('saved-passages')
+  savePassage(@Request() req: any, @Body() dto: SavePassageDto) {
+    return this.bible.savePassage(req.user.id, dto);
+  }
+
+  @Delete('saved-passages/:id')
+  removeSavedPassage(@Request() req: any, @Param('id') id: string) {
+    return this.bible.removeSavedPassage(req.user.id, id);
   }
 }

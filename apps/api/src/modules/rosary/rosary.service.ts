@@ -1,76 +1,78 @@
 import { Injectable } from '@nestjs/common';
+import { ChallengeType } from '@prisma/client';
+import { ChallengeService } from '../challenges/challenge.service';
+import { SessionsService } from '../sessions/sessions.service';
 import { StreakService } from '../streak/streak.service';
+import { XpService } from '../xp/xp.service';
 
-// Mistérios do Terço por dia da semana
 const MYSTERIES: Record<string, { name: string; mysteries: string[] }> = {
-  // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb
   '0': {
-    name: 'Mistérios Gloriosos',
+    name: 'Misterios Gloriosos',
     mysteries: [
-      'A Ressurreição de Jesus',
-      'A Ascensão de Jesus ao Céu',
-      'A vinda do Espírito Santo',
-      'A Assunção de Maria ao Céu',
-      'A Coroação de Maria no Céu',
+      'A Ressurreicao de Jesus',
+      'A Ascensao de Jesus ao Ceu',
+      'A vinda do Espirito Santo',
+      'A Assuncao de Maria ao Ceu',
+      'A Coroacao de Maria no Ceu',
     ],
   },
   '1': {
-    name: 'Mistérios Gozosos',
+    name: 'Misterios Gozosos',
     mysteries: [
-      'A Anunciação do Anjo a Maria',
-      'A Visitação de Maria a Isabel',
+      'A Anunciacao do Anjo a Maria',
+      'A Visitacao de Maria a Isabel',
       'O Nascimento de Jesus',
-      'A Apresentação de Jesus no Templo',
+      'A Apresentacao de Jesus no Templo',
       'A perda e o encontro de Jesus no Templo',
     ],
   },
   '2': {
-    name: 'Mistérios Dolorosos',
+    name: 'Misterios Dolorosos',
     mysteries: [
       'A Agonia de Jesus no Horto',
-      'A Flagelação de Jesus',
-      'A Coroação de Espinhos',
+      'A Flagelacao de Jesus',
+      'A Coroacao de Espinhos',
       'Jesus carrega a Cruz',
-      'A Crucificação de Jesus',
+      'A Crucificacao de Jesus',
     ],
   },
   '3': {
-    name: 'Mistérios Gloriosos',
+    name: 'Misterios Gloriosos',
     mysteries: [
-      'A Ressurreição de Jesus',
-      'A Ascensão de Jesus ao Céu',
-      'A vinda do Espírito Santo',
-      'A Assunção de Maria ao Céu',
-      'A Coroação de Maria no Céu',
+      'A Ressurreicao de Jesus',
+      'A Ascensao de Jesus ao Ceu',
+      'A vinda do Espirito Santo',
+      'A Assuncao de Maria ao Ceu',
+      'A Coroacao de Maria no Ceu',
     ],
   },
   '4': {
-    name: 'Mistérios Luminosos',
+    name: 'Misterios Luminosos',
     mysteries: [
-      'O Batismo de Jesus no Jordão',
-      'O milagre de Caná',
-      'O anúncio do Reino de Deus',
-      'A Transfiguração',
-      'A instituição da Eucaristia',
+      'O Batismo de Jesus no Jordao',
+      'O milagre de Cana',
+      'O anuncio do Reino de Deus',
+      'A Transfiguracao',
+      'A instituicao da Eucaristia',
     ],
   },
   '5': {
-    name: 'Mistérios Dolorosos',
+    name: 'Misterios Dolorosos',
     mysteries: [
       'A Agonia de Jesus no Horto',
-      'A Flagelação de Jesus',
-      'A Coroação de Espinhos',
+      'A Flagelacao de Jesus',
+      'A Coroacao de Espinhos',
       'Jesus carrega a Cruz',
-      'A Crucificação de Jesus',
+      'A Crucificacao de Jesus',
     ],
   },
   '6': {
-    name: 'Mistérios Gozosos',
+    name: 'Misterios Gozosos',
     mysteries: [
-      'A Anunciação do Anjo a Maria',
-      'A Visitação de Maria a Isabel',
+      'A Anunciacao do Anjo a Maria',
+      'A Visitacao de Maria a Isabel',
       'O Nascimento de Jesus',
-      'A Apresentação de Jesus no Templo',
+      'A Apresentacao de Jesus no Templo',
       'A perda e o encontro de Jesus no Templo',
     ],
   },
@@ -78,7 +80,12 @@ const MYSTERIES: Record<string, { name: string; mysteries: string[] }> = {
 
 @Injectable()
 export class RosaryService {
-  constructor(private streak: StreakService) {}
+  constructor(
+    private streak: StreakService,
+    private xp: XpService,
+    private challenges: ChallengeService,
+    private sessions: SessionsService,
+  ) {}
 
   getToday() {
     const dayOfWeek = new Date().getDay().toString();
@@ -86,11 +93,23 @@ export class RosaryService {
   }
 
   async complete(userId: string) {
-    // Completar o terço conta como atividade do dia
-    const updatedStreak = await this.streak.checkIn(userId);
+    const [updatedStreak, xpResult] = await Promise.all([
+      this.streak.checkIn(userId),
+      this.xp.recordRosary(userId),
+    ]);
+
+    this.challenges.incrementProgress(userId, ChallengeType.ROSARY).catch(() => {});
+    await this.sessions.logCompletedSession(userId, 'ROSARY', null, {
+      durationSeconds: 20 * 60,
+      contemplated: true,
+      xpGranted: xpResult?.xpGained ?? 0,
+      streakCounted: true,
+    });
+
     return {
-      message: '✝️ Terço concluído! Que Nossa Senhora interceda por você.',
+      message: 'Terço concluido! Que Nossa Senhora interceda por voce.',
       streak: updatedStreak,
+      xp: xpResult,
     };
   }
 }
