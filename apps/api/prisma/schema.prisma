@@ -25,11 +25,22 @@ model User {
   streak             Streak?
   bibleProgress      BibleProgress[]
   bibleVerseProgress BibleVerseProgress[]
+  bibleSavedPassages BibleSavedPassage[]
   prayerRequests     PrayerRequest[]
   prayerActions      PrayerAction[]
   reports            Report[]
   refreshTokens      RefreshToken[]
   liturgyCompletions LiturgyCompletion[]
+  stats              UserStats?
+  xpTransactions     XpTransaction[]
+  badges             UserBadge[]
+  challengeProgress  UserChallengeProgress[]
+  routines           PrayerRoutine[]
+  reminders          Reminder[]
+  sessionLogs        PrayerSessionLog[]
+  goals              UserGoal[]
+  dailySummaries     UserDailySummary[]
+  seriesProgress     UserSeriesProgress[]
 
   isAdmin   Boolean  @default(false) @map("is_admin")
 
@@ -146,6 +157,27 @@ model BibleVerseProgress {
   @@map("bible_verse_progress")
 }
 
+model BibleSavedPassage {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookId      String   @map("book_id")
+  bookName    String   @map("book_name")
+  chapterNum  Int      @map("chapter_num")
+  verseStart  Int      @map("verse_start")
+  verseEnd    Int      @map("verse_end")
+  reference   String   @db.VarChar(120)
+  text        String   @db.Text
+  note        String?  @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, bookId, chapterNum, verseStart, verseEnd])
+  @@index([userId, createdAt])
+  @@index([userId, bookId, chapterNum])
+  @@map("bible_saved_passages")
+}
+
 // ─── CAPÍTULOS CACHEADOS DA BÍBLIA ─────────────
 model BibleChapterCache {
   id         String   @id @default(cuid())
@@ -190,6 +222,243 @@ model PrayerAction {
   @@map("prayer_actions")
 }
 
+// ─── GAMIFICAÇÃO: DESAFIOS SEMANAIS ───────────
+enum RoutineType {
+  MORNING
+  NIGHT
+  BIBLE
+  ROSARY
+  CUSTOM
+}
+
+enum RoutineItemType {
+  LITURGY
+  BIBLE_CHAPTER
+  ROSARY
+  GUIDED_SESSION
+  FREE_PRAYER
+  REFLECTION
+}
+
+model PrayerRoutine {
+  id               String        @id @default(cuid())
+  userId           String        @map("user_id")
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  description      String?       @db.VarChar(240)
+  type             RoutineType   @default(CUSTOM)
+  isDefault        Boolean       @default(false) @map("is_default")
+  isActive         Boolean       @default(true) @map("is_active")
+  estimatedMinutes Int           @default(0) @map("estimated_minutes")
+  items            RoutineItem[]
+  reminders        Reminder[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, isActive])
+  @@map("prayer_routines")
+}
+
+model RoutineItem {
+  id               String          @id @default(cuid())
+  routineId        String          @map("routine_id")
+  routine          PrayerRoutine   @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  position         Int
+  itemType         RoutineItemType @map("item_type")
+  targetId         String?         @map("target_id")
+  title            String
+  estimatedMinutes Int             @default(0) @map("estimated_minutes")
+  metadataJson     String?         @map("metadata_json") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([routineId, position])
+  @@index([routineId])
+  @@map("routine_items")
+}
+
+model Reminder {
+  id              String         @id @default(cuid())
+  userId          String         @map("user_id")
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routineId       String?        @map("routine_id")
+  routine         PrayerRoutine? @relation(fields: [routineId], references: [id], onDelete: SetNull)
+  title           String
+  timeOfDay       String         @map("time_of_day")
+  timezone        String         @default("UTC")
+  daysOfWeek      String         @map("days_of_week")
+  isEnabled       Boolean        @default(true) @map("is_enabled")
+  lastTriggeredAt DateTime?      @map("last_triggered_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, isEnabled])
+  @@map("reminders")
+}
+
+enum SessionSourceType {
+  ROUTINE
+  LITURGY
+  BIBLE
+  ROSARY
+  GUIDED_SESSION
+  CAMPAIGN
+  FREE_PRAYER
+}
+
+enum SessionCompletionState {
+  STARTED
+  COMPLETED
+  ABANDONED
+}
+
+model PrayerSessionLog {
+  id              String                 @id @default(cuid())
+  userId          String                 @map("user_id")
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceType      SessionSourceType      @map("source_type")
+  sourceId        String?                @map("source_id")
+  startedAt       DateTime               @default(now()) @map("started_at")
+  completedAt     DateTime?              @map("completed_at")
+  durationSeconds Int                    @default(0) @map("duration_seconds")
+  completionState SessionCompletionState @default(STARTED) @map("completion_state")
+  contemplated    Boolean                @default(false)
+  notes           String?                @db.VarChar(500)
+  xpGranted       Int                    @default(0) @map("xp_granted")
+  streakCounted   Boolean                @default(false) @map("streak_counted")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, startedAt])
+  @@index([userId, completionState])
+  @@map("prayer_session_logs")
+}
+
+enum GoalType {
+  DAILY_MINUTES
+  WEEKLY_SESSIONS
+  WEEKLY_ROUTINE_DAYS
+  BIBLE_DAYS
+  ROSARY_PER_WEEK
+}
+
+model UserGoal {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goalType    GoalType @map("goal_type")
+  targetValue Int      @map("target_value")
+  isActive    Boolean  @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, isActive])
+  @@map("user_goals")
+}
+
+model UserDailySummary {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date              DateTime @db.Date
+  minutesPrayed     Int      @default(0) @map("minutes_prayed")
+  sessionsCompleted Int      @default(0) @map("sessions_completed")
+  routineCompleted  Boolean  @default(false) @map("routine_completed")
+  liturgyCompleted  Boolean  @default(false) @map("liturgy_completed")
+  rosaryCompleted   Boolean  @default(false) @map("rosary_completed")
+  bibleCompleted    Boolean  @default(false) @map("bible_completed")
+  xpEarned          Int      @default(0) @map("xp_earned")
+  streakCounted     Boolean  @default(false) @map("streak_counted")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("user_daily_summaries")
+}
+
+enum ChallengeType {
+  LITURGY_READ
+  BIBLE_CHAPTERS
+  ROSARY
+  CONTEMPLATION
+  COMMUNITY_PRAYER
+}
+
+model UserChallengeProgress {
+  id          String        @id @default(cuid())
+  userId      String        @map("user_id")
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challengeId String        @map("challenge_id") // slug do catálogo
+  weekKey     String        @map("week_key")      // ex: "2026-W15"
+  type        ChallengeType
+  progress    Int           @default(0)
+  completed   Boolean       @default(false)
+  completedAt DateTime?     @map("completed_at")
+
+  @@unique([userId, challengeId, weekKey])
+  @@index([userId, weekKey])
+  @@map("user_challenge_progress")
+}
+
+// ─── GAMIFICAÇÃO: ESTATÍSTICAS DO USUÁRIO ──────
+model UserStats {
+  id                  String   @id @default(cuid())
+  userId              String   @unique @map("user_id")
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  xp                  Int      @default(0)
+  level               Int      @default(1)
+  totalLiturgyRead    Int      @default(0) @map("total_liturgy_read")
+  totalContemplated   Int      @default(0) @map("total_contemplated")
+  totalBibleChapters  Int      @default(0) @map("total_bible_chapters")
+  totalRosaries       Int      @default(0) @map("total_rosaries")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("user_stats")
+}
+
+// ─── GAMIFICAÇÃO: TRANSAÇÕES DE XP ────────────
+enum XpReason {
+  LITURGY_READ
+  LITURGY_CONTEMPLATED
+  BIBLE_CHAPTER
+  BIBLE_CONTEMPLATED
+  STREAK_CHECKIN
+  STREAK_MILESTONE
+  CHALLENGE_COMPLETE
+  ROSARY_COMPLETE
+}
+
+model XpTransaction {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Int
+  reason    XpReason
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("xp_transactions")
+}
+
+// ─── GAMIFICAÇÃO: BADGES DESBLOQUEADAS ────────
+model UserBadge {
+  id       String   @id @default(cuid())
+  userId   String   @map("user_id")
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId  String   @map("badge_id")
+  earnedAt DateTime @default(now()) @map("earned_at")
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
+
 // ─── REPORTS DE MODERAÇÃO ──────────────────────
 model Report {
   id              String        @id @default(cuid())
@@ -202,4 +471,114 @@ model Report {
 
   @@unique([userId, prayerRequestId])
   @@map("reports")
+}
+
+// ─── FASE 2: CONTEÚDO GUIADO ───────────────────
+model ContentSeries {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  title          String
+  description    String?  @db.Text
+  category       String   // ex: LENT, PEACE, SLEEP, NOVENA
+  level          String   @default("BEGINNER") // BEGINNER | INTERMEDIATE | ADVANCED
+  estimatedDays  Int      @default(7) @map("estimated_days")
+  imageUrl       String?  @map("image_url")
+  priority       Int      @default(0)
+  isPublished    Boolean  @default(false) @map("is_published")
+
+  sessions       ContentSession[]
+  userProgress   UserSeriesProgress[]
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([isPublished, priority])
+  @@map("content_series")
+}
+
+model AudioAsset {
+  id              String   @id @default(cuid())
+  url             String   @db.VarChar(500)
+  provider        String   // S3, Supabase, Cloudinary
+  durationSeconds Int      @map("duration_seconds")
+  fileSizeBytes   Int      @map("file_size_bytes")
+  language        String   @default("pt-BR")
+  voiceName       String?  @map("voice_name")
+  transcript      String?  @db.Text
+
+  sessions        ContentSession[]
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("audio_assets")
+}
+
+model ContentSession {
+  id              String   @id @default(cuid())
+  seriesId        String   @map("series_id")
+  series          ContentSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  slug            String
+  title           String
+  description     String?  @db.Text
+  sessionType     String   @map("session_type") // MEDITATION | GOSPEL_REFLECTION | ROSARY_GUIDE | EXAMEN | SLEEP | MUSIC | NOVENA
+  dayNumber       Int      @default(1) @map("day_number")
+  durationSeconds Int      @default(0) @map("duration_seconds")
+  scriptText      String?  @map("script_text") @db.Text
+
+  audioAssetId    String?  @map("audio_asset_id")
+  audioAsset      AudioAsset? @relation(fields: [audioAssetId], references: [id], onDelete: SetNull)
+
+  liturgicalSeason String?  @map("liturgical_season")
+  isPublished     Boolean  @default(false) @map("is_published")
+
+  tags            ContentSessionTag[]
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([seriesId, dayNumber])
+  @@index([seriesId])
+  @@map("content_sessions")
+}
+
+model ContentTag {
+  id     String @id @default(cuid())
+  slug   String @unique
+  label  String
+
+  sessions ContentSessionTag[]
+
+  @@map("content_tags")
+}
+
+model ContentSessionTag {
+  id        String @id @default(cuid())
+  sessionId String @map("session_id")
+  session   ContentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tagId     String @map("tag_id")
+  tag       ContentTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, tagId])
+  @@map("content_session_tags")
+}
+
+model UserSeriesProgress {
+  id               String   @id @default(cuid())
+  userId           String   @map("user_id")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seriesId         String   @map("series_id")
+  series           ContentSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  currentDay       Int      @default(1) @map("current_day")
+  completedSessions Int     @default(0) @map("completed_sessions")
+  completed        Boolean  @default(false)
+
+  startedAt        DateTime @default(now()) @map("started_at")
+  completedAt      DateTime? @map("completed_at")
+  lastSessionAt    DateTime? @map("last_session_at")
+
+  @@unique([userId, seriesId])
+  @@index([userId, completed])
+  @@map("user_series_progress")
 }

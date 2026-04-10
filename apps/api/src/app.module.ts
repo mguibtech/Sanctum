@@ -15,6 +15,7 @@ import { ChallengeModule } from './modules/challenges/challenge.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { RoutinesModule } from './modules/routines/routines.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
+import { ContentLibraryModule } from './modules/content-library/content-library.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { RemindersModule } from './modules/reminders/reminders.module';
     SessionsModule,
     RoutinesModule,
     RemindersModule,
+    ContentLibraryModule,
   ],
 })
 export class AppModule {}
