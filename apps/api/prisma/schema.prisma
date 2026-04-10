@@ -41,6 +41,10 @@ model User {
   goals              UserGoal[]
   dailySummaries     UserDailySummary[]
   seriesProgress     UserSeriesProgress[]
+  campaignParticipants PrayerCampaignParticipant[]
+  campaignUpdates    PrayerCampaignUpdate[]
+  communityGroups    CommunityGroup[] @relation("CreatedBy")
+  groupMemberships   CommunityGroupMember[]
 
   isAdmin   Boolean  @default(false) @map("is_admin")
 
@@ -57,6 +61,7 @@ model Parish {
   city  String
   state String
   users User[]
+  groups CommunityGroup[]
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -581,4 +586,120 @@ model UserSeriesProgress {
   @@unique([userId, seriesId])
   @@index([userId, completed])
   @@map("user_series_progress")
+}
+
+// ─── FASE 3: CAMPANHAS E GRUPOS ─────────────────
+enum CampaignGoalType {
+  PARTICIPANTS
+  PRAYERS
+  DAYS_COMPLETED
+}
+
+enum GroupRole {
+  MEMBER
+  MODERATOR
+  LEADER
+}
+
+enum GroupVisibility {
+  PUBLIC
+  PRIVATE
+  PARISH_ONLY
+}
+
+model PrayerCampaign {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  title           String
+  description     String?  @db.Text
+  category        String   // LENT, ADVENT, NOVENA, ROSARY, etc.
+  hostType        String   @map("host_type") // GLOBAL, PARISH, GROUP, USER
+  hostId          String?  @map("host_id")   // parishId, groupId, or userId
+
+  startDate       DateTime @map("start_date")
+  endDate         DateTime @map("end_date")
+
+  goalType        CampaignGoalType @map("goal_type")
+  goalValue       Int      @map("goal_value")
+
+  coverImageUrl   String?  @map("cover_image_url")
+  isPublished     Boolean  @default(false) @map("is_published")
+
+  participants    PrayerCampaignParticipant[]
+  updates         PrayerCampaignUpdate[]
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([hostType, hostId])
+  @@index([isPublished])
+  @@map("prayer_campaigns")
+}
+
+model PrayerCampaignParticipant {
+  id              String   @id @default(cuid())
+  campaignId      String   @map("campaign_id")
+  campaign        PrayerCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  daysCompleted   Int      @default(0) @map("days_completed")
+  totalSessions   Int      @default(0) @map("total_sessions")
+  lastActivityAt  DateTime? @map("last_activity_at")
+  joinedAt        DateTime @default(now()) @map("joined_at")
+
+  @@unique([campaignId, userId])
+  @@index([campaignId])
+  @@map("prayer_campaign_participants")
+}
+
+model PrayerCampaignUpdate {
+  id              String   @id @default(cuid())
+  campaignId      String   @map("campaign_id")
+  campaign        PrayerCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  authorId        String   @map("author_id")
+  author          User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body            String   @db.Text
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([campaignId])
+  @@map("prayer_campaign_updates")
+}
+
+model CommunityGroup {
+  id              String   @id @default(cuid())
+  parishId        String?  @map("parish_id")
+  parish          Parish?  @relation(fields: [parishId], references: [id], onDelete: SetNull)
+
+  name            String
+  description     String?  @db.Text
+  visibility      GroupVisibility @default(PUBLIC)
+
+  createdById     String   @map("created_by_id")
+  createdBy       User     @relation("CreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  members         CommunityGroupMember[]
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([parishId])
+  @@index([visibility])
+  @@map("community_groups")
+}
+
+model CommunityGroupMember {
+  id              String   @id @default(cuid())
+  groupId         String   @map("group_id")
+  group           CommunityGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role            GroupRole @default(MEMBER)
+  joinedAt        DateTime @default(now()) @map("joined_at")
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@map("community_group_members")
 }
