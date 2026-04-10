@@ -12,7 +12,8 @@ export default function BibleLayout() {
         contentStyle: { backgroundColor: Colors.background },
       }}
     >
-      <Stack.Screen name="[bookId]" options={{ title: 'Capítulos' }} />
+      <Stack.Screen name="saved" options={{ title: 'Passagens salvas' }} />
+      <Stack.Screen name="[bookId]" options={{ title: 'Capitulos' }} />
       <Stack.Screen name="[bookId]/[chapterNum]" options={{ title: 'Leitura' }} />
     </Stack>
   );

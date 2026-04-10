@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text as RNText, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, StyleSheet, Text as RNText, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { AxiosError } from 'axios';
-import { Box, Button, Icon, LiturgyText, Screen, Text } from '../components/ui';
+import { Box, Button, Icon, LiturgyText, Screen, Text, XpToast } from '../components/ui';
+import { ConfettiOverlay } from '../components/ui/ConfettiOverlay';
 import theme from '../constants/theme';
 import { LiturgyAPI, StreakAPI } from '../services/api';
+import { hapticSuccess, hapticMedium } from '../utils/haptics';
+import { cancelStreakReminder } from '../hooks/useStreakNotification';
 
 type LiturgyResponse = {
   date?: string;
@@ -143,6 +146,14 @@ export default function LiturgyScreen() {
   const [completing, setCompleting] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [completeResult, setCompleteResult] = useState<{ totalMarked: number; contemplated: boolean } | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [xpToast, setXpToast] = useState<{ xpGained: number; leveledUp: boolean; newLevelName: string | null; visible: boolean }>({
+    xpGained: 0, leveledUp: false, newLevelName: null, visible: false,
+  });
+
+  // Animação de entrada do card de sucesso
+  const successScale = useRef(new Animated.Value(0.85)).current;
+  const successOpacity = useRef(new Animated.Value(0)).current;
 
   const load = async () => {
     setError(null);
@@ -201,6 +212,40 @@ export default function LiturgyScreen() {
 
       setCompleteResult({ totalMarked, contemplated });
       setCompleted(true);
+
+      // Cancela notificação de risco de streak
+      cancelStreakReminder();
+
+      // Feedback tátil
+      if (contemplated) {
+        hapticSuccess();
+      } else {
+        hapticMedium();
+      }
+
+      // Animação de entrada do card de sucesso
+      successScale.setValue(0.85);
+      successOpacity.setValue(0);
+      Animated.parallel([
+        Animated.spring(successScale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }),
+        Animated.timing(successOpacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+      ]).start();
+
+      // Mostra toast de XP
+      const xpData = result?.xp;
+      if (xpData?.xpGained) {
+        setXpToast({
+          xpGained: xpData.xpGained,
+          leveledUp: xpData.leveledUp ?? false,
+          newLevelName: xpData.newLevelName ?? null,
+          visible: true,
+        });
+
+        // Confetti ao subir de nível
+        if (xpData.leveledUp) {
+          setShowConfetti(true);
+        }
+      }
     } finally {
       setCompleting(false);
     }
@@ -416,8 +461,8 @@ export default function LiturgyScreen() {
                 </Pressable>
               </View>
             ) : (
-              /* ── Estado de sucesso ── */
-              <View style={styles.successCard}>
+              /* ── Estado de sucesso (animado) ── */
+              <Animated.View style={[styles.successCard, { opacity: successOpacity, transform: [{ scale: successScale }] }]}>
                 <View style={styles.successIconBox}>
                   <Icon name="check-circle" size={32} color="success" />
                 </View>
@@ -441,11 +486,24 @@ export default function LiturgyScreen() {
                     Sua sequência foi contabilizada
                   </Text>
                 </View>
-              </View>
+              </Animated.View>
             )}
           </View>
         </ScrollView>
       )}
+
+      <XpToast
+        xpGained={xpToast.xpGained}
+        leveledUp={xpToast.leveledUp}
+        newLevelName={xpToast.newLevelName}
+        visible={xpToast.visible}
+        onHide={() => setXpToast((prev) => ({ ...prev, visible: false }))}
+      />
+
+      <ConfettiOverlay
+        visible={showConfetti}
+        onHide={() => setShowConfetti(false)}
+      />
     </Screen>
   );
 }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
+  RefreshControl,
   SectionList,
   StyleSheet,
   Text as RNText,
@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { BibleAPI } from '../../services/api';
 import { Colors, Spacing, Radius } from '../../constants/theme';
+import { BibleScreenSkeleton } from '../../components/ui/SkeletonLoader';
 
 type Book = { id: string; name: string; abbreviation: string };
 type Progress = {
@@ -19,6 +20,19 @@ type Progress = {
   chaptersRead: number;
   chaptersContemplated: number;
   totalChapters: number;
+};
+
+type BibleHealth = {
+  ok: boolean;
+  source: string;
+  booksCount?: number;
+  cachedChapters?: number;
+  cacheReady?: boolean;
+  credentialsConfigured?: boolean;
+};
+
+type SavedPassage = {
+  id: string;
 };
 
 // Abreviações do Antigo Testamento (correspondências comuns em PT)
@@ -44,29 +58,44 @@ function groupBooks(books: Book[]) {
 export default function BibleScreen() {
   const [books, setBooks] = useState<Book[]>([]);
   const [progress, setProgress] = useState<Progress | null>(null);
+  const [health, setHealth] = useState<BibleHealth | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedPassages, setSavedPassages] = useState<SavedPassage[]>([]);
   const router = useRouter();
 
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [booksRes, progressRes] = await Promise.all([
+      const [healthRes, booksRes, progressRes, savedRes] = await Promise.all([
+        BibleAPI.getHealth(),
         BibleAPI.getBooks(),
         BibleAPI.getProgress(),
+        BibleAPI.getSavedPassages(),
       ]);
+      setHealth(healthRes.data ?? null);
       setBooks(booksRes.data ?? []);
       setProgress(progressRes.data ?? null);
+      setSavedPassages(savedRes.data ?? []);
     } catch (e: any) {
       const msg =
         e?.response?.data?.message ?? e?.message ?? 'Não foi possível carregar a Bíblia.';
       setError(Array.isArray(msg) ? msg.join(', ') : String(msg));
+      setHealth(null);
       setBooks([]);
       setProgress(null);
+      setSavedPassages([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -74,12 +103,7 @@ export default function BibleScreen() {
   }, []);
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.accent} />
-        <RNText style={styles.loadingText}>Carregando escrituras...</RNText>
-      </View>
-    );
+    return <BibleScreenSkeleton />;
   }
 
   if (error) {
@@ -92,10 +116,10 @@ export default function BibleScreen() {
         <RNText style={styles.errorMsg}>{error}</RNText>
 
         <View style={styles.hintBox}>
-          <RNText style={styles.hintTitle}>Base local obrigatória</RNText>
+          <RNText style={styles.hintTitle}>Fonte bíblica indisponível</RNText>
           <RNText style={styles.hintText}>
-            O app usa apenas a base internalizada do Sanctum. Se algum livro ou capítulo
-            estiver indisponível, revise a importação do `bible_chapter_cache` no backend.
+            O backend precisa de cache local carregado ou de credenciais válidas da
+            API.Bible para buscar capítulos ausentes.
           </RNText>
         </View>
 
@@ -118,42 +142,73 @@ export default function BibleScreen() {
         keyExtractor={(_, index) => String(index)}
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.accent}
+          />
+        }
         ListHeaderComponent={
-          progress ? (
-            <View style={styles.progressHeader}>
-              {/* Chips de stat */}
-              <View style={styles.progressStats}>
-                <View style={styles.progressStatChip}>
-                  <View style={[styles.progressStatDot, { backgroundColor: Colors.accent }]} />
-                  <View>
-                    <RNText style={styles.progressStatValue}>{progress.percentage}%</RNText>
-                    <RNText style={styles.progressStatLabel}>Lida</RNText>
-                  </View>
-                </View>
-                <View style={styles.progressStatChip}>
-                  <View style={[styles.progressStatDot, { backgroundColor: '#6EA8D4' }]} />
-                  <View>
-                    <RNText style={styles.progressStatValue}>
-                      {progress.contemplatedPercentage}%
-                    </RNText>
-                    <RNText style={styles.progressStatLabel}>Contemplada</RNText>
-                  </View>
-                </View>
-                <View style={styles.progressStatChip}>
-                  <View style={[styles.progressStatDot, { backgroundColor: 'rgba(255,255,255,0.4)' }]} />
-                  <View>
-                    <RNText style={styles.progressStatValue}>{progress.chaptersRead}</RNText>
-                    <RNText style={styles.progressStatLabel}>Capítulos</RNText>
-                  </View>
-                </View>
+          <>
+            {health && !health.cacheReady ? (
+              <View style={styles.healthWarning}>
+                <RNText style={styles.healthWarningTitle}>Base da Bíblia incompleta</RNText>
+                <RNText style={styles.healthWarningText}>
+                  Cache local: {health.cachedChapters ?? 0} capítulos. Credenciais externas:{' '}
+                  {health.credentialsConfigured ? 'configuradas' : 'ausentes'}.
+                </RNText>
               </View>
+            ) : null}
+            {progress ? (
+              <View style={styles.progressHeader}>
+                <View style={styles.progressStats}>
+                  <View style={styles.progressStatChip}>
+                    <View style={[styles.progressStatDot, { backgroundColor: Colors.accent }]} />
+                    <View>
+                      <RNText style={styles.progressStatValue}>{progress.percentage}%</RNText>
+                      <RNText style={styles.progressStatLabel}>Lida</RNText>
+                    </View>
+                  </View>
+                  <View style={styles.progressStatChip}>
+                    <View style={[styles.progressStatDot, { backgroundColor: '#6EA8D4' }]} />
+                    <View>
+                      <RNText style={styles.progressStatValue}>
+                        {progress.contemplatedPercentage}%
+                      </RNText>
+                      <RNText style={styles.progressStatLabel}>Contemplada</RNText>
+                    </View>
+                  </View>
+                  <View style={styles.progressStatChip}>
+                    <View style={[styles.progressStatDot, { backgroundColor: 'rgba(255,255,255,0.4)' }]} />
+                    <View>
+                      <RNText style={styles.progressStatValue}>{progress.chaptersRead}</RNText>
+                      <RNText style={styles.progressStatLabel}>Capítulos</RNText>
+                    </View>
+                  </View>
+                </View>
 
-              {/* Barra de progresso */}
-              <View style={styles.progressBarTrack}>
-                <View style={[styles.progressBarFill, { width: `${progress.percentage}%` }]} />
+                <View style={styles.progressBarTrack}>
+                  <View style={[styles.progressBarFill, { width: `${progress.percentage}%` }]} />
+                </View>
+
+                <Pressable
+                  style={({ pressed }) => [styles.savedCard, { opacity: pressed ? 0.84 : 1 }]}
+                  onPress={() => router.push('/bible/saved')}
+                >
+                  <View>
+                    <RNText style={styles.savedCardEyebrow}>Palavras guardadas</RNText>
+                    <RNText style={styles.savedCardTitle}>
+                      {savedPassages.length > 0
+                        ? `${savedPassages.length} passagem${savedPassages.length > 1 ? 'ens' : ''} salva${savedPassages.length > 1 ? 's' : ''}`
+                        : 'Guarde versiculos e trechos marcantes'}
+                    </RNText>
+                  </View>
+                  <RNText style={styles.savedCardArrow}>›</RNText>
+                </Pressable>
               </View>
-            </View>
-          ) : null
+            ) : null}
+          </>
         }
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
@@ -209,6 +264,26 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   loadingText: { marginTop: Spacing.md, color: Colors.textSecondary, fontSize: 14 },
+  healthWarning: {
+    margin: Spacing.md,
+    marginBottom: 0,
+    backgroundColor: '#FFF4E5',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: '#D97706',
+  },
+  healthWarningTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: 4,
+  },
+  healthWarningText: {
+    fontSize: 13,
+    color: Colors.text,
+    lineHeight: 19,
+  },
 
   errorContainer: {
     flex: 1, backgroundColor: Colors.background,
@@ -225,9 +300,12 @@ const styles = StyleSheet.create({
   errorTitle: { fontSize: 18, fontWeight: '700', color: Colors.primary, textAlign: 'center' },
   errorMsg: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20 },
   hintBox: {
-    backgroundColor: Colors.surface, borderRadius: Radius.lg,
-    padding: Spacing.lg, width: '100%',
-    borderLeftWidth: 3, borderLeftColor: Colors.accent, gap: 6,
+    paddingVertical: Spacing.lg,
+    paddingLeft: Spacing.lg,
+    width: '100%',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
+    gap: 6,
   },
   hintTitle: { fontSize: 13, fontWeight: '700', color: Colors.primary },
   hintText: { fontSize: 13, color: Colors.text, lineHeight: 20 },
@@ -260,6 +338,31 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%', backgroundColor: Colors.accent, borderRadius: 3,
   },
+  savedCard: {
+    marginTop: Spacing.xs,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  savedCardEyebrow: {
+    color: Colors.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  savedCardTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    maxWidth: 220,
+    lineHeight: 20,
+  },
+  savedCardArrow: { color: Colors.accentLight, fontSize: 24, fontWeight: '700' },
 
   // Section headers
   sectionHeader: {
@@ -283,10 +386,9 @@ const styles = StyleSheet.create({
   grid: { paddingHorizontal: Spacing.sm, paddingBottom: Spacing.lg },
   bookCard: { flex: 1, margin: 4, minHeight: 80 },
   bookCardInner: {
-    flex: 1, backgroundColor: Colors.surface,
-    borderRadius: Radius.md, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
+    flex: 1,
+    borderRadius: Radius.md,
+    overflow: 'hidden',
   },
   bookAccentBar: { height: 3, backgroundColor: Colors.accent },
   bookCardContent: {

@@ -14,6 +14,7 @@ import { Box, Button, Icon, Screen, Text, TextField } from '../../components/ui'
 import theme from '../../constants/theme';
 import { useAppAlert } from '../../hooks/useAppAlert';
 import { CommunityAPI } from '../../services/api';
+import { hapticLight, hapticSuccess } from '../../utils/haptics';
 
 function formatRelativeTime(dateStr: string) {
   if (!dateStr) return '';
@@ -25,6 +26,54 @@ function formatRelativeTime(dateStr: string) {
   if (hours < 24) return `há ${hours}h`;
   const days = Math.floor(hours / 24);
   return `há ${days}d`;
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: string;
+  label: string;
+  value: number;
+}) {
+  return (
+    <Box
+      flex={1}
+      bg="surfaceElevated"
+      p="md"
+      borderRadius="md"
+      alignItems="center"
+      gap="xs"
+      style={{
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
+      }}
+    >
+      <Box
+        width={36}
+        height={36}
+        borderRadius="full"
+        alignItems="center"
+        justifyContent="center"
+        bg="accentMuted"
+        mb="xs"
+      >
+        <Icon name={icon} size={18} color="accent" />
+      </Box>
+      <Text variant="subheading" color="primary">
+        {value}
+      </Text>
+      <Text variant="caption" color="textMuted" textAlign="center">
+        {label}
+      </Text>
+    </Box>
+  );
 }
 
 export default function CommunityScreen() {
@@ -53,6 +102,7 @@ export default function CommunityScreen() {
   };
 
   const handlePray = async (id: string) => {
+    hapticLight();
     await CommunityAPI.pray(id);
     setPrayers((previous) =>
       previous.map((prayer) =>
@@ -72,12 +122,16 @@ export default function CommunityScreen() {
       setContent('');
       setIsAnonymous(false);
       setModalVisible(false);
+      hapticSuccess();
       showSuccess('Intenção publicada', 'Seu pedido foi enviado para a comunidade.');
       await load();
     } finally {
       setSubmitting(false);
     }
   };
+
+  // Calculate statistics
+  const totalPrayers = prayers.reduce((sum, prayer) => sum + (prayer.prayerCount || 0), 0);
 
   return (
     <Screen>
@@ -98,37 +152,125 @@ export default function CommunityScreen() {
                 tintColor={theme.colors.accent}
               />
             }
+            ListHeaderComponent={
+              <Box gap="lg" mb="lg">
+                {/* Hero Section */}
+                <Box
+                  bg="primary"
+                  p="lg"
+                  borderRadius="lg"
+                  gap="md"
+                  style={{
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 10,
+                    elevation: 3,
+                  }}
+                >
+                  <Box flexDirection="row" alignItems="flex-start" gap="md">
+                    <Box
+                      width={50}
+                      height={50}
+                      borderRadius="md"
+                      alignItems="center"
+                      justifyContent="center"
+                      bg="accent"
+                    >
+                      <Icon name="hands-pray" size={26} color="primary" />
+                    </Box>
+                    <Box flex={1}>
+                      <Text variant="subheading" color="accent" mb="xs">
+                        Comunidade Sanctum
+                      </Text>
+                      <Text variant="caption" color="accentLight">
+                        Compartilhe suas intenções e ore pelos pedidos da comunidade
+                      </Text>
+                    </Box>
+                  </Box>
+                </Box>
+
+                {/* Statistics */}
+                <Box gap="md">
+                  <Text variant="subheading" color="primary" px="md">
+                    Estatísticas
+                  </Text>
+                  <Box flexDirection="row" gap="md" px="md">
+                    <StatCard
+                      icon="lightbulb-outline"
+                      label="Intenções"
+                      value={prayers.length}
+                    />
+                    <StatCard icon="hands-pray" label="Orações" value={totalPrayers} />
+                  </Box>
+                </Box>
+
+                {/* Header Text */}
+                <Box px="md">
+                  <Text variant="heading" color="text" mb="xs">
+                    Pedidos de Oração
+                  </Text>
+                  <Text variant="muted" color="textMuted">
+                    {prayers.length === 0
+                      ? 'Nenhum pedido ainda. Seja o primeiro!'
+                      : `${prayers.length} ${prayers.length === 1 ? 'intenção' : 'intenções'} na comunidade`}
+                  </Text>
+                </Box>
+              </Box>
+            }
             ListEmptyComponent={
               <Box
                 flex={1}
                 alignItems="center"
                 justifyContent="center"
                 px="xl"
-                style={{ paddingTop: 80 }}
+                style={{ paddingTop: 80, paddingBottom: 80 }}
               >
                 <Box
-                  width={64}
-                  height={64}
+                  width={72}
+                  height={72}
                   borderRadius="full"
                   alignItems="center"
                   justifyContent="center"
-                  mb="md"
+                  mb="lg"
                   style={{ backgroundColor: theme.colors.accentMuted }}
                 >
-                  <Icon name="hand-heart-outline" size={30} color="accent" />
+                  <Icon name="hand-heart-outline" size={36} color="accent" />
                 </Box>
-                <Text variant="subheading" color="primary" textAlign="center" mb="xs">
+                <Text variant="subheading" color="primary" textAlign="center" mb="sm">
                   Nenhuma intenção ainda
                 </Text>
-                <Text variant="muted" color="textMuted" textAlign="center">
-                  Seja o primeiro a compartilhar um pedido de oração com a comunidade.
+                <Text variant="muted" color="textMuted" textAlign="center" mb="lg">
+                  Seja o primeiro a compartilhar um pedido de oração com a comunidade Sanctum.
                 </Text>
+                <Pressable
+                  onPress={() => setModalVisible(true)}
+                  style={({ pressed }) => [
+                    {
+                      opacity: pressed ? 0.8 : 1,
+                      paddingVertical: 10,
+                      paddingHorizontal: 20,
+                      backgroundColor: theme.colors.accent,
+                      borderRadius: theme.borderRadii.md,
+                    },
+                  ]}
+                >
+                  <RNText
+                    style={{
+                      color: theme.colors.primary,
+                      fontWeight: '600',
+                      fontSize: 14,
+                    }}
+                  >
+                    Criar primeira intenção
+                  </RNText>
+                </Pressable>
               </Box>
             }
             contentContainerStyle={{
               padding: theme.spacing.md,
               gap: theme.spacing.sm,
-              flexGrow: 1,
+              paddingBottom: theme.spacing.xl + 80,
             }}
             renderItem={({ item }) => (
               <View style={styles.prayerCard}>

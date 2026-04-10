@@ -13,6 +13,8 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: false,
         tabBarActiveTintColor: theme.colors.accent,
         tabBarInactiveTintColor: 'rgba(255,255,255,0.4)',
         tabBarStyle: {
@@ -36,19 +38,6 @@ export default function TabLayout() {
         tabBarItemStyle: {
           paddingTop: 2,
         },
-        headerStyle: {
-          backgroundColor: theme.colors.primary,
-          shadowColor: 'transparent',
-          elevation: 0,
-          borderBottomWidth: 0,
-        },
-        headerShadowVisible: false,
-        headerTintColor: theme.colors.white,
-        headerTitleStyle: {
-          fontWeight: '700',
-          fontSize: 17,
-          letterSpacing: 0.3,
-        },
       }}
     >
       <Tabs.Screen
@@ -58,7 +47,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name={focused ? 'view-grid' : 'view-grid-outline'} color={color} focused={focused} />
           ),
-          headerTitle: 'Sanctum',
         }}
       />
       <Tabs.Screen
@@ -68,7 +56,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name="hands-pray" color={color} focused={focused} />
           ),
-          headerTitle: 'Terço do Dia',
         }}
       />
       <Tabs.Screen
@@ -78,7 +65,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name={focused ? 'book-open-variant' : 'book-open-outline'} color={color} focused={focused} />
           ),
-          headerTitle: 'Sagrada Escritura',
         }}
       />
       <Tabs.Screen
@@ -88,7 +74,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name={focused ? 'hand-heart' : 'hand-heart-outline'} color={color} focused={focused} />
           ),
-          headerTitle: 'Pedidos de Oração',
         }}
       />
       <Tabs.Screen
@@ -98,7 +83,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name={focused ? 'account-circle' : 'account-circle-outline'} color={color} focused={focused} />
           ),
-          headerTitle: 'Meu Perfil',
         }}
       />
     </Tabs>

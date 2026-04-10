@@ -11,6 +11,8 @@ import {
   View,
 } from 'react-native';
 import { RosaryAPI } from '../../services/api';
+import { hapticLight, hapticSuccess } from '../../utils/haptics';
+import { XpToast } from '../../components/ui';
 import { Colors, Spacing, Radius } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -282,6 +284,17 @@ export default function RosaryScreen() {
   const [phase, setPhase] = useState<'loading' | 'intro' | 'praying' | 'done'>('loading');
   const [stepIndex, setStepIndex] = useState(0);
   const [steps, setSteps] = useState<PrayerStep[]>([]);
+  const [xpToast, setXpToast] = useState<{
+    xpGained: number;
+    leveledUp: boolean;
+    newLevelName: string | null;
+    visible: boolean;
+  }>({
+    xpGained: 0,
+    leveledUp: false,
+    newLevelName: null,
+    visible: false,
+  });
 
   useEffect(() => {
     RosaryAPI.getToday().then((res) => {
@@ -299,9 +312,19 @@ export default function RosaryScreen() {
   }, [mysteries]);
 
   const goNext = useCallback(async () => {
-    Vibration.vibrate(30);
+    hapticLight();
     if (stepIndex >= steps.length - 1) {
-      await RosaryAPI.complete();
+      const response = await RosaryAPI.complete();
+      hapticSuccess();
+      const xp = response.data?.xp;
+      if (xp?.xpGained) {
+        setXpToast({
+          xpGained: xp.xpGained,
+          leveledUp: xp.leveledUp ?? false,
+          newLevelName: xp.newLevelName ?? null,
+          visible: true,
+        });
+      }
       setPhase('done');
       return;
     }
@@ -318,23 +341,19 @@ export default function RosaryScreen() {
   }, []);
 
   // ── Renders ──────────────────────────────────────────────────────────────
+  let content = null;
+
   if (phase === 'loading') {
-    return (
+    content = (
       <View style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color={Colors.accent} />
       </View>
     );
-  }
-
-  if (phase === 'intro' && mysteries) {
-    return <IntroScreen mysteries={mysteries} onStart={start} />;
-  }
-
-  if (phase === 'done') {
-    return <DoneScreen onRestart={restart} />;
-  }
-
-  if (phase === 'praying' && steps.length > 0) {
+  } else if (phase === 'intro' && mysteries) {
+    content = <IntroScreen mysteries={mysteries} onStart={start} />;
+  } else if (phase === 'done') {
+    content = <DoneScreen onRestart={restart} />;
+  } else if (phase === 'praying' && steps.length > 0) {
     const currentStep = steps[stepIndex];
 
     // Calcula o mistério atual (qual dos 5 estamos)
@@ -358,31 +377,42 @@ export default function RosaryScreen() {
     }
 
     if (currentStep.type === 'mystery') {
-      return (
+      content = (
         <MysteryAnnouncement
           num={currentStep.mysteryIndex + 1}
           text={mysteries!.mysteries[currentStep.mysteryIndex]}
           onNext={goNext}
         />
       );
+    } else {
+      content = (
+        <PrayerScreen
+          step={currentStep as PrayerStep & { type: 'prayer' }}
+          stepIndex={stepIndex}
+          totalSteps={steps.length}
+          mysteries={mysteries!.mysteries}
+          currentMysteryIndex={currentMysteryIndex}
+          hailMaryCount={hailMaryCount}
+          onPrevious={goPrev}
+          onNext={goNext}
+          isLast={stepIndex === steps.length - 1}
+        />
+      );
     }
-
-    return (
-      <PrayerScreen
-        step={currentStep as PrayerStep & { type: 'prayer' }}
-        stepIndex={stepIndex}
-        totalSteps={steps.length}
-        mysteries={mysteries!.mysteries}
-        currentMysteryIndex={currentMysteryIndex}
-        hailMaryCount={hailMaryCount}
-        onPrevious={goPrev}
-        onNext={goNext}
-        isLast={stepIndex === steps.length - 1}
-      />
-    );
   }
 
-  return null;
+  return (
+    <>
+      {content}
+      <XpToast
+        xpGained={xpToast.xpGained}
+        leveledUp={xpToast.leveledUp}
+        newLevelName={xpToast.newLevelName}
+        visible={xpToast.visible}
+        onHide={() => setXpToast((prev) => ({ ...prev, visible: false }))}
+      />
+    </>
+  );
 }
 
 // ─── Estilos ──────────────────────────────────────────────────────────────
@@ -391,7 +421,11 @@ const styles = StyleSheet.create({
   center: { justifyContent: 'center', alignItems: 'center' },
 
   // Intro
-  introContent: { padding: Spacing.lg, paddingBottom: Spacing['2xl'] },
+  introContent: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing['2xl'],
+    gap: Spacing.md,
+  },
   introHeader: {
     backgroundColor: Colors.primary, borderRadius: Radius.lg,
     padding: Spacing.xl, alignItems: 'center', marginBottom: Spacing.lg,
@@ -401,8 +435,10 @@ const styles = StyleSheet.create({
   introSub: { fontSize: 14, color: 'rgba(255,255,255,0.65)', marginTop: 4 },
   mysteriesContainer: { gap: Spacing.sm, marginBottom: Spacing.lg },
   mysteryRow: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md,
-    backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
   mysteryBullet: {
     width: 28, height: 28, borderRadius: 14,
@@ -412,9 +448,11 @@ const styles = StyleSheet.create({
   mysteryBulletText: { color: Colors.primary, fontWeight: '700', fontSize: 13 },
   mysteryText: { flex: 1, fontSize: 15, color: Colors.text, lineHeight: 22 },
   sequenceBox: {
-    backgroundColor: Colors.surface, borderRadius: Radius.md,
-    padding: Spacing.lg, marginBottom: Spacing.lg,
-    borderLeftWidth: 3, borderLeftColor: Colors.primaryLight,
+    paddingVertical: Spacing.lg,
+    marginBottom: Spacing.lg,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
+    paddingLeft: Spacing.md,
     gap: Spacing.xs,
   },
   sequenceTitle: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary, letterSpacing: 1, marginBottom: Spacing.xs },
@@ -456,10 +494,10 @@ const styles = StyleSheet.create({
   beadContainer: { alignItems: 'center', paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg },
   beadLabel: { marginTop: Spacing.sm, fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
   prayerCard: {
-    flex: 1, margin: Spacing.md, backgroundColor: Colors.surface,
-    borderRadius: Radius.lg, padding: Spacing.xl,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+    flex: 1,
+    margin: Spacing.md,
+    borderRadius: Radius.lg,
+    padding: Spacing.xl,
   },
   prayerTitle: {
     fontSize: 13, fontWeight: '700', color: Colors.textSecondary,
@@ -476,9 +514,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingBottom: Spacing.xl, paddingTop: Spacing.sm,
   },
   navBtnBack: {
-    width: 52, height: 52, borderRadius: Radius.full,
-    backgroundColor: Colors.surface, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: Colors.border,
+    width: 52,
+    height: 52,
+    borderRadius: Radius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   navBtnBackText: { fontSize: 24, color: Colors.text },
   navBtnNext: {
@@ -498,8 +538,10 @@ const styles = StyleSheet.create({
   doneTitle: { fontSize: 28, fontWeight: '700', color: Colors.primary, textAlign: 'center' },
   doneSub: { fontSize: 16, color: Colors.textSecondary, textAlign: 'center', lineHeight: 24 },
   doneQuote: {
-    backgroundColor: Colors.surface, borderRadius: Radius.lg,
-    padding: Spacing.lg, borderLeftWidth: 3, borderLeftColor: Colors.accent,
+    paddingVertical: Spacing.lg,
+    paddingLeft: Spacing.lg,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
     width: '100%',
   },
   doneQuoteText: { fontSize: 15, color: Colors.text, fontStyle: 'italic', lineHeight: 22 },

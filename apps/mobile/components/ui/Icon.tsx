@@ -1,3 +1,4 @@
+import React from 'react';
 import { useTheme } from '@shopify/restyle';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import type { Theme } from '../../constants/theme';

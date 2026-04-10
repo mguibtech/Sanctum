@@ -69,17 +69,35 @@ export const StreakAPI = {
   checkIn: () => api.post('/streak/check-in'),
   getMe: () => api.get('/streak/me'),
   useShield: () => api.post('/streak/use-shield'),
-  getRanking: () => api.get('/streak/ranking'),
+  getRanking: (
+    metric: 'streak' | 'xp' | 'bible' | 'contemplation' = 'streak',
+    period: 'week' | 'month' | 'allTime' = 'allTime',
+  ) => api.get(`/streak/ranking?metric=${metric}&period=${period}`),
 };
 
 export const BibleAPI = {
+  getHealth: () => api.get('/bible/health'),
   getBooks: () => api.get('/bible/books'),
   getChapters: (bookId: string) => api.get(`/bible/books/${bookId}/chapters`),
+  getBookProgress: (bookId: string) => api.get(`/bible/books/${bookId}/progress`),
   getChapter: (bookId: string, num: number) =>
     api.get(`/bible/books/${bookId}/chapters/${num}`),
   saveProgress: (data: { bookId: string; bookName: string; chapterNum: number; contemplated?: boolean }) =>
     api.post('/bible/progress', data),
   getProgress: () => api.get('/bible/progress'),
+  getSavedPassages: (params?: { bookId?: string; chapterNum?: number }) =>
+    api.get('/bible/saved-passages', { params }),
+  getChapterSavedPassages: (bookId: string, num: number) =>
+    api.get(`/bible/books/${bookId}/chapters/${num}/saved-passages`),
+  savePassage: (data: {
+    bookId: string;
+    bookName: string;
+    chapterNum: number;
+    verseStart: number;
+    verseEnd: number;
+    note?: string;
+  }) => api.post('/bible/saved-passages', data),
+  removeSavedPassage: (id: string) => api.delete(`/bible/saved-passages/${id}`),
 };
 
 export const CommunityAPI = {
@@ -90,9 +108,34 @@ export const CommunityAPI = {
   report: (id: string) => api.post(`/community/prayers/${id}/report`),
 };
 
+export const ChallengeAPI = {
+  getWeekly: () => api.get('/challenges/weekly'),
+};
+
 export const RosaryAPI = {
   getToday: () => api.get('/rosary/today'),
   complete: () => api.post('/rosary/complete'),
+};
+
+export const RoutinesAPI = {
+  list: () => api.get('/routines'),
+  getById: (id: string) => api.get(`/routines/${id}`),
+  create: (data: Record<string, unknown>) => api.post('/routines', data),
+  update: (id: string, data: Record<string, unknown>) => api.patch(`/routines/${id}`, data),
+  remove: (id: string) => api.delete(`/routines/${id}`),
+  addItem: (id: string, data: Record<string, unknown>) => api.post(`/routines/${id}/items`, data),
+  updateItem: (id: string, itemId: string, data: Record<string, unknown>) =>
+    api.patch(`/routines/${id}/items/${itemId}`, data),
+  removeItem: (id: string, itemId: string) => api.delete(`/routines/${id}/items/${itemId}`),
+  complete: (id: string) => api.post(`/routines/${id}/complete`),
+};
+
+export const SessionsAPI = {
+  start: (data: Record<string, unknown>) => api.post('/sessions/start', data),
+  complete: (id: string, data?: Record<string, unknown>) => api.post(`/sessions/${id}/complete`, data ?? {}),
+  abandon: (id: string, data?: Record<string, unknown>) => api.post(`/sessions/${id}/abandon`, data ?? {}),
+  history: (limit = 20) => api.get(`/sessions/history?limit=${limit}`),
+  summary: (days = 7) => api.get(`/sessions/summary?days=${days}`),
 };
 
 export const UsersAPI = {
@@ -100,4 +143,6 @@ export const UsersAPI = {
   updateProfile: (data: { name?: string; avatar?: string; parishId?: string }) =>
     api.patch('/users/me', data),
   getStats: () => api.get('/users/me/stats'),
+  getBadges: () => api.get('/users/me/badges'),
+  getActivity: (days = 7) => api.get(`/users/me/activity?days=${days}`),
 };

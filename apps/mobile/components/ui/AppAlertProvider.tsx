@@ -1,3 +1,4 @@
+import React from 'react';
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { Modal, Pressable } from 'react-native';
 import { useTheme } from '@shopify/restyle';
@@ -8,7 +9,7 @@ import { Icon } from './Icon';
 import { Text } from './Text';
 
 type AppAlertType = 'error' | 'success' | 'warning';
-type AppAlertActionVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
+type AppAlertActionVariant = 'primary' | 'secondary' | 'ghost';
 
 export type AppAlertAction = {
   label: string;

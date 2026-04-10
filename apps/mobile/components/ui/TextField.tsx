@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState } from 'react';
 import { useTheme } from '@shopify/restyle';
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
@@ -10,7 +11,9 @@ export type TextFieldProps = TextInputProps & {
   label?: string;
   error?: string;
   dark?: boolean;
+  disabled?: boolean;
   leftIconName?: string;
+  helperText?: string;
 };
 
 export function TextField({
@@ -21,20 +24,33 @@ export function TextField({
   multiline,
   style,
   secureTextEntry = false,
+  disabled = false,
+  helperText,
   ...props
 }: TextFieldProps) {
   const theme = useTheme<Theme>();
   const [isPasswordHidden, setIsPasswordHidden] = useState(secureTextEntry);
-  const textColor = dark ? theme.colors.white : theme.colors.text;
-  const mutedColor = dark ? 'rgba(255,255,255,0.7)' : theme.colors.textMuted;
-  const backgroundColor = dark ? 'rgba(255,255,255,0.12)' : theme.colors.surface;
+
+  const textColor = disabled
+    ? theme.colors.textLight
+    : dark
+      ? theme.colors.white
+      : theme.colors.text;
+  const mutedColor = dark ? 'rgba(255,255,255,0.5)' : theme.colors.textMuted;
+  const backgroundColor = disabled
+    ? theme.colors.surfaceMuted
+    : dark
+      ? 'rgba(255,255,255,0.12)'
+      : theme.colors.surface;
   const borderColor = error
     ? theme.colors.error
-    : dark
-      ? 'rgba(255,255,255,0.2)'
-      : theme.colors.border;
+    : disabled
+      ? theme.colors.border
+      : dark
+        ? 'rgba(255,255,255,0.2)'
+        : theme.colors.border;
   const isPasswordField = secureTextEntry;
-  const iconColor = dark ? 'accentLight' : 'textMuted';
+  const iconColor = disabled ? 'textLight' : dark ? 'accentLight' : 'textMuted';
 
   return (
     <Box>
@@ -88,6 +104,10 @@ export function TextField({
       {error ? (
         <Text variant="caption" color="error" mt="xs">
           {error}
+        </Text>
+      ) : helperText ? (
+        <Text variant="caption" color="textMuted" mt="xs">
+          {helperText}
         </Text>
       ) : null}
     </Box>

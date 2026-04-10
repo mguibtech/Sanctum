@@ -1,6 +1,6 @@
 import { createTheme } from '@shopify/restyle';
 
-const theme = createTheme({
+const lightTheme = createTheme({
   colors: {
     primary: '#16324F',
     primaryLight: '#2A5D88',
@@ -151,8 +151,162 @@ const theme = createTheme({
   },
 });
 
-export type Theme = typeof theme;
+const darkTheme = createTheme({
+  colors: {
+    primary: '#2A5D88',
+    primaryLight: '#3A7BA8',
+    primaryDark: '#1A3D68',
+    accent: '#D4B86A',
+    accentLight: '#E8CDA0',
+    accentMuted: 'rgba(212,184,106,0.15)',
+    background: '#0D1520',
+    backgroundSoft: '#151F2E',
+    surface: '#1A2940',
+    surfaceElevated: '#202E42',
+    surfaceMuted: '#2A3D52',
+    surfaceStrong: '#34495E',
+    border: '#2A3D52',
+    borderLight: '#3A4D62',
+    text: '#E8F0F8',
+    textMuted: '#9BA8B8',
+    textSecondary: '#9BA8B8',
+    textLight: '#7A8898',
+    success: '#2EAD6B',
+    successLight: 'rgba(46,173,107,0.15)',
+    warning: '#D4A017',
+    warningLight: 'rgba(212,160,23,0.15)',
+    error: '#D85C5C',
+    errorLight: 'rgba(216,92,92,0.15)',
+    red: '#D85C5C',
+    green: '#2EAD6B',
+    yellow: '#E4B84D',
+    streak: '#F08C2E',
+    streakLight: 'rgba(240,140,46,0.15)',
+    cardBlue: '#2A4A68',
+    cardBlueLight: '#354A68',
+    white: '#FFFFFF',
+    black: '#0D1520',
+    transparent: 'transparent',
+    overlay: 'rgba(13,21,32,0.7)',
+  },
+  spacing: {
+    none: 0,
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    '2xl': 48,
+    '3xl': 64,
+  },
+  borderRadii: {
+    none: 0,
+    xs: 6,
+    sm: 10,
+    md: 16,
+    lg: 22,
+    xl: 30,
+    pill: 9999,
+    full: 9999,
+  },
+  textVariants: {
+    defaults: {
+      color: 'text',
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    display: {
+      color: 'text',
+      fontSize: 42,
+      lineHeight: 48,
+      fontWeight: '800',
+      letterSpacing: -0.5,
+    },
+    hero: {
+      color: 'text',
+      fontSize: 36,
+      lineHeight: 42,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+    },
+    title: {
+      color: 'primary',
+      fontSize: 28,
+      lineHeight: 34,
+      fontWeight: '700',
+      letterSpacing: -0.3,
+    },
+    heading: {
+      color: 'text',
+      fontSize: 20,
+      lineHeight: 26,
+      fontWeight: '700',
+    },
+    subheading: {
+      color: 'text',
+      fontSize: 17,
+      lineHeight: 23,
+      fontWeight: '600',
+    },
+    body: {
+      color: 'text',
+      fontSize: 15,
+      lineHeight: 23,
+    },
+    bodyStrong: {
+      color: 'text',
+      fontSize: 15,
+      lineHeight: 23,
+      fontWeight: '600',
+    },
+    muted: {
+      color: 'textMuted',
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    caption: {
+      color: 'textMuted',
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    overline: {
+      color: 'textMuted',
+      fontSize: 11,
+      lineHeight: 15,
+      fontWeight: '700',
+      letterSpacing: 1.6,
+      textTransform: 'uppercase',
+    },
+    label: {
+      color: 'textMuted',
+      fontSize: 12,
+      lineHeight: 16,
+      fontWeight: '700',
+      letterSpacing: 1.4,
+      textTransform: 'uppercase',
+    },
+    buttonPrimary: {
+      color: 'primary',
+      fontSize: 15,
+      lineHeight: 21,
+      fontWeight: '700',
+      letterSpacing: 0.2,
+    },
+    buttonInverse: {
+      color: 'text',
+      fontSize: 15,
+      lineHeight: 21,
+      fontWeight: '700',
+      letterSpacing: 0.2,
+    },
+  },
+});
 
+export type Theme = typeof lightTheme;
+
+export { lightTheme, darkTheme };
+
+const theme = lightTheme;
 export default theme;
 
 export const Colors = theme.colors;

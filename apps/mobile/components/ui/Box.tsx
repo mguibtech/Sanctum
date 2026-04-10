@@ -1,3 +1,4 @@
+import React from 'react';
 import { createBox } from '@shopify/restyle';
 import type { Theme } from '../../constants/theme';
 

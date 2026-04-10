@@ -1,10 +1,11 @@
+import React from 'react';
 import { useTheme } from '@shopify/restyle';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, type PressableProps } from 'react-native';
 import type { Theme } from '../../constants/theme';
 import { Text } from './Text';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 export type ButtonProps = PressableProps & {
@@ -26,59 +27,54 @@ export function Button({
 
   const palette = {
     primary: {
-      backgroundColor: theme.colors.accent,
-      borderColor: theme.colors.accent,
-      textVariant: 'buttonPrimary' as const,
-    },
-    secondary: {
       backgroundColor: theme.colors.primary,
       borderColor: theme.colors.primary,
-      textVariant: 'buttonInverse' as const,
+      textColor: theme.colors.white,
     },
-    outline: {
+    secondary: {
       backgroundColor: theme.colors.transparent,
-      borderColor: theme.colors.border,
-      textVariant: 'bodyStrong' as const,
+      borderColor: theme.colors.primary,
+      textColor: theme.colors.primary,
+    },
+    tertiary: {
+      backgroundColor: theme.colors.accent,
+      borderColor: theme.colors.accent,
+      textColor: theme.colors.primary,
     },
     ghost: {
       backgroundColor: theme.colors.transparent,
       borderColor: theme.colors.transparent,
-      textVariant: 'muted' as const,
+      textColor: theme.colors.textMuted,
     },
     danger: {
-      backgroundColor: theme.colors.errorLight,
+      backgroundColor: theme.colors.error,
       borderColor: theme.colors.error,
-      textVariant: 'muted' as const,
+      textColor: theme.colors.white,
     },
   }[variant];
 
   const sizeStyles = {
     sm: {
       paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
       borderRadius: theme.borderRadii.sm,
-      minHeight: 36,
+      minHeight: 40,
     },
     md: {
       paddingHorizontal: theme.spacing.lg,
       paddingVertical: theme.spacing.md,
-      borderRadius: theme.borderRadii.md,
+      borderRadius: theme.borderRadii.sm,
       minHeight: 48,
     },
     lg: {
       paddingHorizontal: theme.spacing.xl,
       paddingVertical: theme.spacing.md,
-      borderRadius: theme.borderRadii.lg,
+      borderRadius: theme.borderRadii.md,
       minHeight: 56,
     },
   }[size];
 
-  const indicatorColor =
-    variant === 'primary'
-      ? theme.colors.primary
-      : variant === 'secondary'
-        ? theme.colors.white
-        : theme.colors.accent;
+  const borderWidth = variant === 'secondary' ? 2 : 1;
 
   return (
     <Pressable
@@ -88,9 +84,10 @@ export function Button({
         {
           backgroundColor: palette.backgroundColor,
           borderColor: palette.borderColor,
+          borderWidth,
           borderRadius: sizeStyles.borderRadius,
           minHeight: sizeStyles.minHeight,
-          opacity: pressed || disabled || loading ? 0.72 : 1,
+          opacity: disabled || loading ? 0.6 : pressed ? 0.8 : 1,
           paddingHorizontal: sizeStyles.paddingHorizontal,
           paddingVertical: sizeStyles.paddingVertical,
         },
@@ -98,9 +95,11 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator color={indicatorColor} />
+        <ActivityIndicator color={palette.textColor} />
       ) : typeof children === 'string' ? (
-        <Text variant={palette.textVariant}>{children}</Text>
+        <Text style={{ color: palette.textColor, fontWeight: '600' }}>
+          {children}
+        </Text>
       ) : (
         children
       )}
