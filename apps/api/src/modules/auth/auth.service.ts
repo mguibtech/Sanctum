@@ -49,12 +49,19 @@ export class AuthService {
     }
 
     // Rotação do refresh token (invalida o antigo, emite novo)
-    await this.prisma.refreshToken.delete({ where: { token } });
+    await this.prisma.refreshToken.deleteMany({ where: { token } });
     return this.generateTokens(stored.userId, '');
   }
 
   async logout(token: string) {
     await this.prisma.refreshToken.deleteMany({ where: { token } });
+  }
+
+  async getUser(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true, createdAt: true, onboardingCompleted: true },
+    });
   }
 
   private async generateTokens(userId: string, email: string) {

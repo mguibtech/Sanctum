@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Param,
   Patch,
   Post,
   Request,
@@ -65,7 +66,7 @@ export class PersonalizationController {
 
   @Post('recommendations/:id/consume')
   @HttpCode(200)
-  consumeRecommendation(@Request() req: any, @Request('id') id: string) {
+  consumeRecommendation(@Request() req: any, @Param('id') id: string) {
     return this.recommendation.markAsConsumed(id);
   }
 }
